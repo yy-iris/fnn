@@ -25,7 +25,7 @@ log_path = '../tensorboard/mlp'
 
 # LSTM
 for idx in range(6):
-    lstm_model = MLPEmbedding(64,
+    model = MLPEmbedding(64,
                          time_window=128,
                          logdir=log_path,
                          train_step = 200,
@@ -37,10 +37,10 @@ for idx in range(6):
     temp = xdata[:,left:right]
     temp1 = temp.reshape((-1,128))  #确认reshape之后每128是不是计划中的
     rd_idx = np.random.permutation(temp1.shape[0])
-    tdata = lstm_model.fit_transform(temp1[rd_idx,:])
+    tdata = model.fit_transform(temp1[rd_idx,:])
 
     file_name = "../model/mlp/mlp_encoder_" + str(idx) + ".h5"
-    lstm_model.model.encoder.save(file_name)
+    model.model.encoder.save(file_name)
 
 print('done')
 

@@ -5,8 +5,8 @@ import pandas as pd
 import scipy.io as scio
 from myModel import LSTMEmbedding, MLPEmbedding, ETDEmbedding, AMIEmbedding, TICAEmbedding
 from fnn.regularizers import FNN
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
+#import matplotlib.pyplot as plt
+#from mpl_toolkits.mplot3d import axes3d
 import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow.keras.layers as layers

@@ -464,7 +464,8 @@ class NeuralNetworkEmbedding(TimeSeriesEmbedding):
         # else:
         #     callbacks = [None]
 
-        tensorboard = [tf.keras.callbacks.TensorBoard(log_dir=self.logdir),tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', patience=10)]
+        tensorboard = [tf.keras.callbacks.TensorBoard(log_dir=self.logdir),
+                       tf.keras.callbacks.EarlyStopping(monitor='loss', mode='min', patience=3)]
         self.train_history = self.model.fit(
             x=X,
             y=X,

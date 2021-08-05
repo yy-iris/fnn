@@ -28,7 +28,7 @@ for idx in range(6):
     model = MLPEmbedding(64,
                          time_window=128,
                          logdir=log_path,
-                         train_step = 200,
+                         train_step = 20,
                          latent_regularizer=FNN(10),
                          random_state=0
                          )

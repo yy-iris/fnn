@@ -5,8 +5,8 @@ import tensorflow as tf
 # import tensorflow_addons as tfa
 import numpy as np
 import warnings
-from fnn.utils import standardize_ts, hankel_matrix, resample_dataset
-from fnn.tica import tICA
+from utils import standardize_ts, hankel_matrix, resample_dataset
+from tica import tICA
 
 # tf.__version__ must be greater than 2
 # print(len(tf.config.list_physical_devices('GPU')), "GPUs available.")
@@ -19,8 +19,8 @@ if use_legacy:
 
 from sklearn.decomposition import PCA, SparsePCA, KernelPCA, FastICA
 
-from fnn.networks import *
-from fnn.regularizers import FNN
+from networks import *
+from regularizers import FNN
 
 
 class TimeSeriesEmbedding:
@@ -50,9 +50,9 @@ class TimeSeriesEmbedding:
             self,
             n_latent,
             time_window=10,
+            n_features=1,
             logdir = None,
             train_step = 1,
-            n_features=1,
             random_state=None,
             **kwargs
     ):
@@ -436,7 +436,8 @@ class NeuralNetworkEmbedding(TimeSeriesEmbedding):
         X_new : array-like, shape (n_timepoints, n_components)
             Transformed values.
         """
-        X = tf.expand_dims(tf.convert_to_tensor(X),axis=2)
+
+        # conver_to_tensor
 
         # if subsample:
         #     self.train_indices, _ = resample_dataset(
@@ -477,8 +478,8 @@ class NeuralNetworkEmbedding(TimeSeriesEmbedding):
 
     def transform(self, X, y=None):
         # X_test = hankel_matrix(standardize_ts(X), self.time_window)
-        X_test = tf.expand_dims(tf.convert_to_tensor(X), axis=2)
-        X_new = self.model.encoder.predict(X_test)
+        # X_test = tf.expand_dims(tf.convert_to_tensor(X), axis=2)
+        X_new = self.model.encoder.predict(X)
         return X_new
 
     # class CausalEmbedding(NeuralNetworkEmbedding):
@@ -561,11 +562,23 @@ class LSTMEmbedding(NeuralNetworkEmbedding):
             )
         else:
             self.model = my_LSTMAutoencoder(
-                self.n_latent,
-                self.time_window,
+                n_latent=self.n_latent,
+                time_window=self.time_window,
                 **kwargs
             )
 
+class ConvEmbedding(NeuralNetworkEmbedding):
+    def __init__(
+            self,
+            *args,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        kwargs.pop("time_window")
+        self.model = ConvAutoencoder(
+            n_latent=self.n_latent,
+            time_window=self.time_window,
+            **kwargs)
 
 class CausalEmbedding(NeuralNetworkEmbedding):
     def __init__(

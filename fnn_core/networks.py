@@ -4,10 +4,10 @@ TensorFlow functions to support the false nearest neighbor regularizer
 import tensorflow as tf
 import numpy as np
 import warnings
-from fnn.utils import standardize_ts, hankel_matrix, resample_dataset
+from utils import standardize_ts, hankel_matrix, resample_dataset
 import math
 
-from fnn.layers import *
+from layers import *
 
 # # tf.__version__ must be greater than 2
 # # print(len(tf.config.list_physical_devices('GPU')), "GPUs available.")
@@ -684,3 +684,55 @@ class my_LSTMAutoencoder(tf.keras.Model):
     def call(self, inputs, training=False):
         outputs = self.decoder(self.encoder(inputs))
         return outputs
+
+
+class ConvAutoencoder(tf.keras.Model):
+    """
+    An LSTM autoencoder model for time series
+    """
+
+    def __init__(
+            self,
+            n_latent,
+            time_window,
+            n_features=1,
+            network_shape=[],
+            latent_regularizer=None,
+            rnn_opts=dict(),
+            activation_func=tf.keras.layers.ELU(alpha=1.0),
+            random_state=None,
+            **kwargs
+    ):
+        super(ConvAutoencoder, self).__init__()
+        self.n_latent = n_latent
+        self.time_window = time_window
+        self.n_features = n_features
+
+        # Initialize state
+        tf.random.set_seed(random_state)
+
+        # Encoder
+        self.encoder = tf.keras.Sequential()
+        self.encoder.add(tf.keras.layers.InputLayer(input_shape=(1, n_features,time_window)))
+        self.encoder.add(tf.keras.layers.GaussianNoise(0.5))  # smooths the output
+        self.encoder.add(tf.keras.layers.Conv2D(32, kernel_size=(1, 4), strides=(1, 1), activation='relu', padding='same'))
+        self.encoder.add(tf.keras.layers.MaxPool2D(pool_size=(1, 2), strides=(1, 1), padding='same'))
+        self.encoder.add(tf.keras.layers.Conv2D(n_latent, kernel_size=(1, 2), strides=(1, 1), activation='relu', padding='same'))
+        self.encoder.add(tf.keras.layers.MaxPool2D(pool_size=(1, 2), strides=(1, 1), padding='same'))
+        self.encoder.add(tf.keras.layers.BatchNormalization(activity_regularizer=latent_regularizer))
+
+        ## Decoder
+        self.decoder = tf.keras.Sequential()
+        self.decoder.add(tf.keras.layers.GaussianNoise(0.5, input_shape=(1,n_features,time_window/4)))
+        self.decoder.add(tf.keras.layers.Conv2D(32, (1, 2), (1, 1), activation='relu', padding='same'))
+        self.decoder.add(tf.keras.layers.UpSampling2D(size=(1, 1)))
+        self.decoder.add(tf.keras.layers.Conv2D(128, (1, 4), (1, 1), activation='relu', padding='same'))
+        self.decoder.add(tf.keras.layers.UpSampling2D(size=(1, 1)))
+        self.decoder.add(tf.keras.layers.Conv2D(128, (1, 4), (1, 1), activation='relu', padding='same'))
+        self.decoder.add(tf.keras.layers.BatchNormalization())
+        # self.decoder.add(tf.keras.layers.Activation(activation_func))
+
+    def call(self, inputs, training=False):
+        outputs = self.decoder(self.encoder(inputs))
+        return outputs
+

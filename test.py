@@ -149,26 +149,25 @@ def trainNetwork_dense():
     print('done')
 
 def testProcess():
-    # initial: determine the n_feature
+    # step1: initial: determine the n_feature
     n_feature = 1
     if n_feature==3:
         channel = 1
     elif n_feature==1:
         channel = 3
 
-    # step1: get xdata/ydata in rightTime signal based on encoder.h5
     file_path = './model/lstmfnn_train1'
     train_data_path = '../pronyTest/data/allSignal_rightTime.mat'
     test_data_path = '../pronyTest/data/allSignal_de2.mat'
 
-    # step2: train related network via xdata/ydata above, and get the model
+    # step2: get xdata/ydata in rightTime signal based on encoder.h5, and train related network
     # model = load_model('./h5model/lstm_train200.h5')
     xdata, ydata = generatePickle(train_data_path, file_path, n_feature)
     xdata = xdata.reshape(-1, channel, 6, 64)
     model = trainNetwork_conv(xdata,ydata,channel=channel)
 
     #step3: evalue the network through niose/de2 data
-    xdata, ydata = generatePickle(test_data_path, file_path)
+    xdata, ydata = generatePickle(test_data_path, file_path, n_feature)
     xdata = xdata.reshape(-1, channel, 6, 64)
     score = model.evaluate(xdata,ydata)
     print(score)

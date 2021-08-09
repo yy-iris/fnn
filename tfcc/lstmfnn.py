@@ -3,7 +3,7 @@ sys.path.append('../fnn_core')
 import numpy as np
 import pandas as pd
 import scipy.io as scio
-from myModel import LSTMEmbedding, MLPEmbedding, ETDEmbedding, AMIEmbedding, TICAEmbedding
+from myModel import LSTMEmbedding
 from regularizers import FNN
 #import matplotlib.pyplot as plt
 #from mpl_toolkits.mplot3d import axes3d

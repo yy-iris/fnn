@@ -148,30 +148,6 @@ def trainNetwork_dense():
     model.save('./h5model/mlpfnn_train200.h5')
     print('done')
 
-def testProcess():
-    # step1: initial: determine the n_feature
-    n_feature = 1
-    if n_feature==3:
-        channel = 1
-    elif n_feature==1:
-        channel = 3
-
-    file_path = './model/lstmfnn_train1'
-    train_data_path = '../pronyTest/data/allSignal_rightTime.mat'
-    test_data_path = '../pronyTest/data/allSignal_de2.mat'
-
-    # step2: get xdata/ydata in rightTime signal based on encoder.h5, and train related network
-    # model = load_model('./h5model/lstm_train200.h5')
-    xdata, ydata = generatePickle(train_data_path, file_path, n_feature)
-    xdata = xdata.reshape(-1, channel, 6, 64)
-    model = trainNetwork_conv(xdata,ydata,channel=channel)
-
-    #step3: evalue the network through niose/de2 data
-    xdata, ydata = generatePickle(test_data_path, file_path, n_feature)
-    xdata = xdata.reshape(-1, channel, 6, 64)
-    score = model.evaluate(xdata,ydata)
-    print(score)
-
 def generatePickle(data_path, file_path,n_feature):
     dd1 = scio.loadmat(data_path)
     x1 = dd1['xdata']
@@ -204,12 +180,69 @@ def generatePickle(data_path, file_path,n_feature):
             td = model.predict(temp1)
             xdata = np.hstack((xdata, td))
 
-
-    return xdata[:,1:], ydata
     # value = {'xdata':xdata[:,1:],'ydata':ydata}
     # file = open('./mydatasets/lstm_train1_ft3.pickle','wb')
     # pickle.dump(value,file)
     # file.close()
+    return xdata[:, 1:], ydata
+
+def testProcess():
+    # step1: initial: determine the n_feature
+    n_feature = 1
+    if n_feature==3:
+        channel = 1
+    elif n_feature==1:
+        channel = 3
+
+    load_train_pickle = False
+    load_test_pickle = False
+    load_h5model = False
+    encoder_path = './model/lstmfnn_train1'
+    h5model_path = './h5model/lstm_train200.h5'
+    train_mat_path = '../pronyTest/data/allSignal_rightTime.mat'
+    test_mat_path = '../pronyTest/data/allSignal_rightTime_noise30.mat'
+    train_pickle_path = './mydatasets/fnn_rightTime.pickle'
+    test_pickle_path = './mydatasets/fnn_rightTime.pickle'
+
+    if load_train_pickle:
+        with open(train_pickle_path,'rb') as file:
+            value = pickle.load(file)
+            file.close()
+        xdata = value['xdata']
+        ydata = value['ydata']
+        # value = {'xdata':xdata[:,1:],'ydata':ydata}
+        # file = open('./mydatasets/lstm_train1_ft3.pickle','wb')
+        # pickle.dump(value,file)
+        # file.close()
+    else:
+        xdata, ydata = generatePickle(train_mat_path, encoder_path, n_feature)
+        xdata = xdata.reshape(-1, channel, 6, 64)
+
+    # step2: get xdata/ydata in rightTime signal based on encoder.h5, and train related network
+    if load_h5model:
+        model = load_model(h5model_path)
+    else:
+        model = trainNetwork_conv(xdata,ydata,channel=channel)
+
+    #step3: evalue the network through niose/de2 data
+    if load_test_pickle:
+        with open(test_pickle_path,'rb') as file:
+            value = pickle.load(file)
+            file.close()
+        xdata = value['xdata']
+        ydata = value['ydata']
+        # value = {'xdata':xdata[:,1:],'ydata':ydata}
+        # file = open('./mydatasets/lstm_train1_ft3.pickle','wb')
+        # pickle.dump(value,file)
+        # file.close()
+    else:
+        xdata, ydata = generatePickle(test_mat_path, encoder_path, n_feature)
+        xdata = xdata.reshape(-1, channel, 6, 64)
+
+    score = model.evaluate(xdata,ydata)
+    r2 = 1-score[1]/np.var(ydata)
+    print(score)
+
 
 
 def test_structure():

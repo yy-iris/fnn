@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 
 from scipy.linalg import hankel
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 ###------------------------------------###
 #

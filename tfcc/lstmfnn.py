@@ -16,7 +16,7 @@ import argparse
 import os
 import time
 
-def trainFnn(epoch):
+def trainFnn(epoch, feature):
     # parser = argparse.ArgumentParser()
     # parser.description = 'please enter parameters ...'
     # parser.add_argument("-e", "--epoch", type = int, default="1")
@@ -25,7 +25,7 @@ def trainFnn(epoch):
     log_path = '../tensorboard/lstmfnn'
     if not os.path.exists(log_path):
         os.makedirs(log_path)
-    model_path = '../model/lstmfnn/epoch' + str(epoch) + '/'+str(int(time.time()))
+    model_path = '../model/lstmfnn/epoch' + str(epoch) + '/feature_'+ str(feature) + '/' + str(int(time.time()))
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
@@ -41,6 +41,7 @@ def trainFnn(epoch):
     for idx in range(6):
         lstm_model = LSTMEmbedding(64,
                              time_window=128,
+                             n_features = feature,
                              logdir=log_path,
                              train_step = epoch,
                              latent_regularizer=FNN(10),
@@ -49,9 +50,13 @@ def trainFnn(epoch):
         left = idx*128*3
         right = left+128*3
         temp = xdata[:,left:right]
-        temp1 = temp.reshape((-1,128))  #确认reshape之后每128是不是计划中的
-        rd_idx = np.random.permutation(temp1.shape[0])
-        tdata = lstm_model.fit_transform(temp1[rd_idx,:])
+        if lstm_model.n_features == 1:
+            temp1 = temp.reshape((-1, 128))  # 确认reshape之后每128是不是计划中的
+            temp1 = tf.expand_dims(tf.convert_to_tensor(temp1), axis=2)
+        else:
+            temp1 = temp.reshape((-1, lstm_model.n_features, 128))
+            temp1 = tf.transpose(tf.convert_to_tensor(temp1), perm=[0, 2, 1])
+        tdata = lstm_model.fit_transform(temp1)
 
         file_name = model_path + "/lstmfnn_encoder_" + str(idx) + ".h5"
         lstm_model.model.encoder.save(file_name)
@@ -59,6 +64,9 @@ def trainFnn(epoch):
     print('done')
 
 
-trainFnn(10)
-trainFnn(50)
-trainFnn(100)
+trainFnn(10, 1)
+trainFnn(50, 1)
+trainFnn(100, 1)
+trainFnn(10, 3)
+trainFnn(50, 3)
+trainFnn(100, 3)

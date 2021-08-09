@@ -1,10 +1,10 @@
 import sys
-sys.path.append('./fnn')
+sys.path.append('./fnn_core')
 import numpy as np
 import pandas as pd
 import scipy.io as scio
-from myModel import LSTMEmbedding, MLPEmbedding, ETDEmbedding, AMIEmbedding, TICAEmbedding,ConvEmbedding
-from fnn.regularizers import FNN
+from fnn_core.myModel import LSTMEmbedding, MLPEmbedding, ETDEmbedding, AMIEmbedding, TICAEmbedding,ConvEmbedding
+from fnn_core.regularizers import FNN
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import tensorflow as tf
@@ -45,8 +45,7 @@ def trainFnn_lstm():
             temp1 = tf.expand_dims(tf.convert_to_tensor(temp1), axis=2)
         else:
             temp1 = temp.reshape((-1,lstm_model.n_features, 128))
-            rd_idx = np.random.permutation(temp1.shape[0])
-            temp1 = tf.transpose(tf.convert_to_tensor(temp1[rd_idx, :]),perm=[0,2,1])
+            temp1 = tf.transpose(tf.convert_to_tensor(temp1),perm=[0,2,1])
         tdata = lstm_model.fit_transform(temp1)
 
         file_name = "./model/lstmfnn_train1_latent16/lstmfnn_encoder_" + str(idx) + ".h5"
@@ -86,23 +85,21 @@ def trainFnn_conv():
 
     print('done')
 
-
-
-def trainNetwork_conv(n_feature=1):
-    with open('./mydatasets/lstm_train1_ft3.pickle','rb') as file:
-        value = pickle.load(file)
-        file.close()
-    xdata = value['xdata']
-    ydata = value['ydata']
+def trainNetwork_conv(xdata, ydata, channel=1):
+    # with open('./mydatasets/lstm_train1_ft3.pickle','rb') as file:
+    #     value = pickle.load(file)
+    #     file.close()
+    # xdata = value['xdata']
+    # ydata = value['ydata']
     random_dex = np.array(pd.read_csv('./random_dex.csv'))[:,1:]
     split = int(random_dex.shape[0]*0.7)
     train_idx = random_dex[:split]
     test_idx = random_dex[split:]
-    xtrain = xdata[train_idx,:].reshape(-1,n_feature,6,64)
+    xtrain = xdata[train_idx,:].reshape(-1,channel,6,64)
     ytrain = ydata[train_idx].reshape(-1,1)
-    xtest = xdata[test_idx, :].reshape(-1, n_feature, 6, 64)
+    xtest = xdata[test_idx, :].reshape(-1, channel, 6, 64)
     ytest = ydata[test_idx].reshape(-1, 1)
-    input = keras.layers.Input(shape=(n_feature, 6, 64))
+    input = keras.layers.Input(shape=(channel, 6, 64))
 
     k1 = layers.Conv2D(64, kernel_size=(1,2), strides=(1,1), activation='relu', padding='same')(input)
     k2 = layers.Conv2D(32, kernel_size=(1,2), strides=(1,1), activation='relu', padding='same')(k1)
@@ -117,8 +114,10 @@ def trainNetwork_conv(n_feature=1):
     model.fit(xtrain, ytrain, batch_size=500, epochs=200, validation_data=(xtest,ytest))
     model.compile(optimizer=keras.optimizers.RMSprop(1e-4), loss='mean_absolute_percentage_error',metrics=['mean_absolute_error'])
     model.fit(xtrain, ytrain, batch_size=500, epochs=100, validation_data=(xtest,ytest))
-    model.save('./h5model/lstmfnn_train1_ft3.h5')
-    print('done')
+
+    # model.save('./h5model/lstmfnn_train1_ft3.h5')
+    # print('done')
+    return model
 
 def trainNetwork_dense():
     with open('./mydatasets/lstm_train200.pickle','rb') as file:
@@ -150,28 +149,40 @@ def trainNetwork_dense():
     print('done')
 
 def testProcess():
-    with open('./mydatasets/lstm_train200_de2.pickle','rb') as file:
-        value = pickle.load(file)
-        file.close()
-    xdata = value['xdata'].reshape(-1,3,6,64)
-    ydata = value['ydata'].reshape(-1,1)
-    model = load_model('./h5model/lstm_train200.h5')
-    # ypred = model.predict(xdata,batch_size=1000).reshape(-1,1)
-    # mape = np.mean(np.abs(ypred-ydata)/ydata)
+    # initial: determine the n_feature
+    n_feature = 1
+    if n_feature==3:
+        channel = 1
+    elif n_feature==1:
+        channel = 3
+
+    # step1: get xdata/ydata in rightTime signal based on encoder.h5
+    file_path = './model/lstmfnn_train1'
+    train_data_path = '../pronyTest/data/allSignal_rightTime.mat'
+    test_data_path = '../pronyTest/data/allSignal_de2.mat'
+
+    # step2: train related network via xdata/ydata above, and get the model
+    # model = load_model('./h5model/lstm_train200.h5')
+    xdata, ydata = generatePickle(train_data_path, file_path, n_feature)
+    xdata = xdata.reshape(-1, channel, 6, 64)
+    model = trainNetwork_conv(xdata,ydata,channel=channel)
+
+    #step3: evalue the network through niose/de2 data
+    xdata, ydata = generatePickle(test_data_path, file_path)
+    xdata = xdata.reshape(-1, channel, 6, 64)
     score = model.evaluate(xdata,ydata)
     print(score)
 
-def generatePickle():
-    dd1 = scio.loadmat('../pronyTest/data/allSignal_rightTime.mat')
+def generatePickle(data_path, file_path,n_feature):
+    dd1 = scio.loadmat(data_path)
     x1 = dd1['xdata']
     y1 = dd1['yd'][0, :]
     ydata = y1 / 300
-    n_feature=3
     xdata = np.zeros((x1.shape[0],1))
     if n_feature ==1:
         for idx in range(18):
             model_idx = int(idx/3)
-            model_path = './model/lstmfnn_train1_latent64_ft3/lstmfnn_encoder_' + str(model_idx) + '.h5'
+            model_path = file_path + '/lstmfnn_encoder_' + str(model_idx) + '.h5'
             model = load_model(model_path)
 
             left = idx * 128
@@ -183,7 +194,7 @@ def generatePickle():
     elif n_feature==3:
         for idx in range(6):
             model_idx = int(idx / 3)
-            model_path = './model/lstmfnn_train1_latent64_ft3/lstmfnn_encoder_' + str(model_idx) + '.h5'
+            model_path = file_path + '/lstmfnn_encoder_' + str(model_idx) + '.h5'
             model = load_model(model_path)
 
             left = idx * 128*3
@@ -195,10 +206,11 @@ def generatePickle():
             xdata = np.hstack((xdata, td))
 
 
-    value = {'xdata':xdata[:,1:],'ydata':ydata}
-    file = open('./mydatasets/lstm_train1_ft3.pickle','wb')
-    pickle.dump(value,file)
-    file.close()
+    return xdata[:,1:], ydata
+    # value = {'xdata':xdata[:,1:],'ydata':ydata}
+    # file = open('./mydatasets/lstm_train1_ft3.pickle','wb')
+    # pickle.dump(value,file)
+    # file.close()
 
 
 def test_structure():
@@ -220,4 +232,4 @@ def test_structure():
     # print(model1.summary())
     print(model2.summary())
 
-trainFnn_conv()
+testProcess()
